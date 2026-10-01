@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roatán reef cam search</title>
+<style>
+  :root { --bg:#f6f7f8; --panel:#fff; --ink:#16202a; --muted:#5d6b78; --line:#d9dee3; --accent:#0b6e8a; --hit:#1a8f4c; --chip:#e9eef2; --warn:#9a5b00; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#10161c; --panel:#18212a; --ink:#e6ebef; --muted:#93a1ad; --line:#2b3742; --accent:#58bcd6; --hit:#4cc481; --chip:#22303b; --warn:#e0a850; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header, main, footer { max-width:1500px; margin:0 auto; padding:0 16px; }
+  header { padding-top:22px; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  .lede { color:var(--muted); margin:0 0 14px; max-width:75ch; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px; }
+  .cams button { border:1px solid var(--line); background:var(--panel); color:var(--ink); padding:7px 14px; border-radius:6px; cursor:pointer; font:inherit; }
+  .cams button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+  form { display:flex; gap:8px; flex:1 1 420px; }
+  input[type=text] { flex:1; min-width:0; padding:9px 12px; font:inherit; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); }
+  button.go { padding:9px 18px; font:inherit; border:0; border-radius:6px; background:var(--accent); color:#fff; cursor:pointer; }
+  label.opt { color:var(--muted); display:flex; gap:6px; align-items:center; cursor:pointer; }
+  #chips { display:flex; flex-wrap:wrap; gap:6px; max-height:66px; overflow:hidden; }
+  #chips.open { max-height:none; }
+  #chips button { border:0; background:var(--chip); color:var(--ink); padding:3px 10px; border-radius:12px; cursor:pointer; font:13px/1.5 inherit; }
+  #morechips { border:0; background:none; color:var(--accent); cursor:pointer; font:13px inherit; padding:2px 0; }
+  #status { color:var(--muted); font-size:13px; min-height:20px; margin:6px 0 12px; }
+  #status b { color:var(--warn); font-weight:600; }
+  main { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; padding-bottom:20px; }
+  @media (max-width: 900px) { main { grid-template-columns:1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; min-width:0; }
+  section h2 { font-size:16px; margin:0; }
+  section .what { color:var(--muted); font-size:13px; margin:2px 0 4px; }
+  section .tally { font-size:13px; margin:0 0 10px; min-height:19px; }
+  .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+  .card { min-width:0; }
+  .card a { display:block; position:relative; aspect-ratio:16/9; background:var(--chip); border-radius:5px; overflow:hidden; outline:3px solid transparent; }
+  .card.hit a { outline-color:var(--hit); }
+  .card img { width:100%; height:100%; object-fit:fill; display:block; }
+  .box { position:absolute; width:6.25%; height:6.25%; border:2px solid; border-radius:2px; box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 0 8px 2px rgba(255,255,255,.35); pointer-events:none; }
+  .cap { font-size:13px; margin-top:4px; overflow-wrap:anywhere; }
+  .meta { font-size:12px; color:var(--muted); }
+  .meta .tr { color:var(--warn); }
+  .legend { font-size:12px; color:var(--muted); margin:-4px 0 8px; }
+  .legend span { display:inline-block; margin-right:10px; }
+  .legend i { display:inline-block; width:10px; height:10px; border:2px solid; margin-right:4px; vertical-align:-1px; }
+  #more { display:block; margin:0 auto 24px; padding:8px 18px; font:inherit; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); cursor:pointer; }
+  [hidden] { display:none !important; }
+  footer { color:var(--muted); font-size:13px; padding-bottom:30px; max-width:1500px; }
+  footer p { max-width:95ch; margin:0 0 8px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Roatán reef cam search</h1>
+  <p class="lede">Text search over viewer-captioned snapshots from two fixed underwater cameras at Utopia Village, Roatán. Each query is answered three ways, so you can see what a few thousand captions teach a frozen image-text model about one camera.</p>
+  <div class="row">
+    <div class="cams" role="group" aria-label="Camera">
+      <button data-cam="coral" aria-pressed="true">Coral cam</button>
+      <button data-cam="dock" aria-pressed="false">Dock cam</button>
+    </div>
+    <form id="f"><input id="q" type="text" placeholder="queen angelfish, tarpon with a remora, school of silver fish …" autocomplete="off"><button class="go">Search</button></form>
+  </div>
+  <div class="row">
+    <label class="opt"><input type="checkbox" id="train"> also search the frames whose captions were used to fit the maps</label>
+    <label class="opt"><input type="checkbox" id="boxes" checked> mark where each phrase matched (third column)</label>
+  </div>
+  <div id="chips"></div><button id="morechips" hidden>show all</button>
+  <div id="status"></div>
+</header>
+<main>
+  <section id="col0"><h2>SigLIP2, frozen</h2><p class="what">The base model as released (base/16, 256 px). No camera-specific training.</p><p class="tally"></p><div class="grid"></div></section>
+  <section id="col1"><h2>Two linear maps</h2><p class="what">One linear map on the query embedding and one on the image embedding, fitted to this camera's captions.</p><p class="tally"></p><div class="grid"></div></section>
+  <section id="col2"><h2>Two maps over sets</h2><p class="what">The same two maps applied to every phrase of the query and every patch of the image; each phrase is matched to its best patch.</p><p class="tally"></p><div class="legend"></div><div class="grid"></div></section>
+</main>
+<button id="more" hidden>Show more results</button>
+<footer>
+  <p>A green outline means the viewer's own caption for that frame contains the query phrases. It is a rough guide: viewers caption one thing per snapshot, so a correct fish in an uncaptioned frame is not outlined.</p>
+  <p>By default the search covers held-out frames only: neither the frame nor its caption was seen when the maps were fitted. Typed queries run the SigLIP2 text encoder in your browser (a 370 MB download the first time); the suggested phrases work without it.</p>
+  <p>Images and captions come from the <a href="https://explore.org/livecams" rel="noopener">explore.org</a> snapshot gallery. Thumbnails load from explore.org and each one links to the original snapshot.</p>
+</footer>
+
+<script type="module">
+const DATA_BASE = 'data/';
+const MODEL_BASE = 'model/';                                          // manifest.json, text_encoder.onnx and the weight parts
+const TOKENIZER_ID = 'onnx-community/siglip2-base-patch16-256-ONNX', ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/';
+const D = 768, COLORS = ['#ffd21f', '#ff5fd2', '#5fe8ff', '#8dff5f', '#ff8a3d', '#b9a0ff', '#ffffff', '#ff5f5f'];
+const $ = s => document.querySelector(s);
+const S = { cam: null, parts: [], K: 12, last: null, enc: null, encLoading: null };
+const cams = {};                                                   // cam -> loaded data
+
+const setStatus = html => { $('#status').innerHTML = html; };
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function fetchBuf(url, label, onProgress) {
+  const r = await fetch(url); if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  const total = +r.headers.get('content-length') || 0, reader = r.body.getReader(), chunks = []; let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read(); if (done) break; chunks.push(value); got += value.length;
+    if (onProgress) onProgress(got); else setStatus(`Loading ${label}: ${(got / 1e6).toFixed(0)}${total ? ' of ' + (total / 1e6).toFixed(0) : ''} MB`);
+  }
+  const out = new Uint8Array(got); let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; } return out.buffer;
+}
+
+async function loadPart(cam, which) {
+  const c = cams[cam], dir = `${DATA_BASE}${cam}/`, label = `${c.meta.title}, ${which === 'held' ? 'held-out' : 'training'} frames`;
+  const [g, z, k] = [await fetchBuf(`${dir}pooled_${which}.i8`, label), await fetchBuf(`${dir}patches_${which}.i8`, label), await fetchBuf(`${dir}patchidx_${which}.u8`, label)];
+  const n = which === 'held' ? c.meta.n_held : c.meta.n - c.meta.n_held;
+  c[which] = { G: new Int8Array(g), Z: new Int8Array(z), I: new Uint8Array(k), n, offset: which === 'held' ? 0 : c.meta.n_held };
+}
+
+async function loadCam(cam) {
+  if (!cams[cam]) {
+    const dir = `${DATA_BASE}${cam}/`; setStatus('Loading camera…');
+    const meta = await (await fetch(`${dir}meta.json`)).json(), maps = new Float32Array(await fetchBuf(`${dir}maps.f32`, 'maps')), sug = new Float32Array(await fetchBuf(`${dir}suggest.f32`, 'suggestions'));
+    let o = 0; const take = n => maps.subarray(o, o += n);
+    cams[cam] = { meta, WtP: take(D * D), btP: take(D), WtS: take(D * D), btS: take(D), B: take(meta.k * D), sug, sugIndex: new Map(meta.suggest.map((s, i) => [s.toLowerCase(), i])) };
+    await loadPart(cam, 'held');
+  }
+  if ($('#train').checked && !cams[cam].train) await loadPart(cam, 'train');
+  S.cam = cam; const c = cams[cam]; S.parts = $('#train').checked ? [c.held, c.train] : [c.held];
+  document.querySelectorAll('.cams button').forEach(b => b.setAttribute('aria-pressed', b.dataset.cam === cam));
+  const chips = $('#chips'); chips.innerHTML = '';
+  for (const s of c.meta.suggest) { const b = document.createElement('button'); b.textContent = s; b.onclick = () => { $('#q').value = s; run(); }; chips.appendChild(b); }
+  $('#morechips').hidden = false; ready();
+}
+
+function ready() {
+  const c = cams[S.cam], n = S.parts.reduce((a, p) => a + p.n, 0);
+  setStatus(`${c.meta.title}: searching ${n.toLocaleString()} ${$('#train').checked ? 'frames (held-out and training)' : 'held-out frames'}. ` + (S.enc ? 'Text encoder ready.' : 'Pick a suggested phrase, or type anything (loads the text encoder once).'));
+}
+
+// text side ---------------------------------------------------------------------------------------------------------------------------
+function phrasesOf(q) {                                               // the same rule the maps were evaluated with: split on , & / + and / with
+  const strip = s => s.replace(/^[\s.,;:!#'"]+|[\s.,;:!#'"]+$/g, '');
+  const parts = q.split(/\s*(?:&|\band\b|\bwith\b|,|\/|\+)\s*/i).map(strip).filter(p => (p.match(/[A-Za-z]/g) || []).length >= 3);
+  const seen = new Set(), out = []; for (const p of parts) { const k = p.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(p); } }
+  return out.length > 1 ? out.slice(0, 8) : [q.trim()];
+}
+const unit = v => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; s = 1 / Math.sqrt(s); for (let i = 0; i < v.length; i++) v[i] *= s; return v; };
+function applyMap(x, W, b) {                                          // residual linear map, then unit length
+  const y = new Float32Array(D);
+  for (let i = 0; i < D; i++) { let s = x[i] + b[i]; const r = i * D; for (let j = 0; j < D; j++) s += W[r + j] * x[j]; y[i] = s; }
+  return unit(y);
+}
+async function encoder() {                                           // float32 SigLIP2 text tower (int8 token table, float16 weights in storage), run by onnxruntime-web
+  if (S.enc) return S.enc;
+  if (!S.encLoading) S.encLoading = (async () => {
+    setStatus('<b>Loading the text encoder…</b>');
+    const [T, ort, manifest] = await Promise.all([import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3'), import(`${ORT}ort.wasm.min.mjs`), fetch(`${MODEL_BASE}manifest.json`).then(r => r.json())]);
+    ort.env.wasm.wasmPaths = ORT; ort.env.wasm.numThreads = 1;
+    const tok = await T.AutoTokenizer.from_pretrained(TOKENIZER_ID), total = Object.values(manifest.files).reduce((a, f) => a + f.bytes, 0); let before = 0;
+    const externalData = [];
+    for (const [path, f] of Object.entries(manifest.files)) {
+      const data = new Uint8Array(f.bytes); let o = 0;
+      for (const part of f.parts) { const b = new Uint8Array(await fetchBuf(MODEL_BASE + part, '', got => setStatus(`<b>Downloading the text encoder (kept in the browser cache afterwards): ${((before + got) / 1e6).toFixed(0)} of ${(total / 1e6).toFixed(0)} MB</b>`))); data.set(b, o); o += b.length; before += b.length; }
+      externalData.push({ path, data });
+    }
+    setStatus('<b>Starting the text encoder…</b>'); await new Promise(r => setTimeout(r, 30));
+    const session = await ort.InferenceSession.create(new Uint8Array(await (await fetch(MODEL_BASE + manifest.graph)).arrayBuffer()), { executionProviders: ['wasm'], externalData });
+    S.enc = async texts => {
+      const out = [];
+      for (const t of texts) {                                        // one text per run keeps the peak memory flat
+        const ids = tok([t], { padding: 'max_length', max_length: 64, truncation: true }).input_ids, res = await session.run({ input_ids: new ort.Tensor('int64', BigInt64Array.from(ids.data, BigInt), [1, 64]) });
+        out.push(unit(Float32Array.from(res.pooler_output.data)));
+      }
+      return out;
+    };
+    const c = cams[S.cam], e = (await S.enc([c.meta.suggest[0]]))[0]; let cos = 0; for (let i = 0; i < D; i++) cos += e[i] * c.sug[i];
+    console.log(`text encoder self-check: cosine with the stored embedding of "${c.meta.suggest[0]}" = ${cos.toFixed(4)}`); S.encCheck = cos;
+    return S.enc;
+  })();
+  return S.encLoading;
+}
+async function embed(texts) {                                         // stored embeddings for suggested phrases, the encoder for everything else
+  const c = cams[S.cam], out = new Array(texts.length), need = [];
+  texts.forEach((t, i) => { const k = c.sugIndex.get(t.trim().toLowerCase()); if (k !== undefined && c.meta.suggest[k] === t.trim()) out[i] = c.sug.slice(k * D, (k + 1) * D); else need.push(i); });
+  if (need.length) {
+    const enc = await encoder(); setStatus('Encoding the query…'); await new Promise(r => setTimeout(r, 0));
+    const e = await Promise.race([enc(need.map(i => texts[i])), new Promise((_, rej) => setTimeout(() => rej(new Error('the text encoder stopped responding; reload the page')), 60000))]);
+    need.forEach((i, j) => out[i] = e[j]);
+  }
+  return out;
+}
+
+// scoring -----------------------------------------------------------------------------------------------------------------------------
+function score(q, phraseEmb) {
+  const c = cams[S.cam], { k, m, lam, tau, gscale, pscale } = c.meta, n = S.parts.reduce((a, p) => a + p.n, 0);
+  const s0 = new Float32Array(n), s1 = new Float32Array(n), s2 = new Float32Array(n), best = phraseEmb.map(() => new Uint8Array(n));
+  const qP = applyMap(q, c.WtP, c.btP), qS = applyMap(q, c.WtS, c.btS);
+  const proj = phraseEmb.map(pe => { const t = applyMap(pe, c.WtS, c.btS), v = new Float32Array(k); for (let d = 0; d < k; d++) { let s = 0; const r = d * D; for (let j = 0; j < D; j++) s += c.B[r + j] * t[j]; v[d] = s / pscale[d]; } return v; });
+  const sim = new Float32Array(m); let row = 0;
+  for (const part of S.parts) {
+    const { G, Z, I } = part;
+    for (let i = 0; i < part.n; i++, row++) {
+      let a = 0, b = 0, cc = 0, o = i * 3 * D;
+      for (let j = 0; j < D; j++) { a += q[j] * G[o + j]; b += qP[j] * G[o + D + j]; cc += qS[j] * G[o + 2 * D + j]; }
+      s0[row] = a; s1[row] = b; let setTerm = 0; const zo = i * m * k;
+      for (let p = 0; p < proj.length; p++) {
+        const v = proj[p]; let mx = -Infinity, arg = 0;
+        for (let t = 0; t < m; t++) { let s = 0; const r = zo + t * k; for (let d = 0; d < k; d++) s += v[d] * Z[r + d]; sim[t] = s; if (s > mx) { mx = s; arg = t; } }
+        let e = 0; for (let t = 0; t < m; t++) e += Math.exp((sim[t] - mx) / tau);
+        setTerm += mx + tau * Math.log(e); best[p][row] = I[i * m + arg];
+      }
+      s2[row] = cc / gscale + lam * setTerm / proj.length;
+    }
+  }
+  return { scores: [s0, s1, s2], best, n };
+}
+const rowOf = r => { let x = r; for (const p of S.parts) { if (x < p.n) return cams[S.cam].meta.rows[p.offset + x]; x -= p.n; } };
+
+// page --------------------------------------------------------------------------------------------------------------------------------
+function render() {
+  const letters = t => t.toLowerCase().replace(/^(?:an?|the|some|two|three)\s+/, '').replace(/[^a-z0-9]/g, '');                 // 'Queen angel fish' and '#queenangelfish' both count
+  const { query, phrases, res } = S.last, low = phrases.map(letters), showBoxes = $('#boxes').checked;
+  res.scores.forEach((sc, col) => {
+    const order = Array.from(sc.keys()).sort((a, b) => sc[b] - sc[a]).slice(0, S.K), sec = $(`#col${col}`), grid = sec.querySelector('.grid'); grid.innerHTML = ''; let hits = 0;
+    for (const r of order) {
+      const row = rowOf(r), cap = letters(row.c), hit = low.every(p => cap.includes(p)); hits += hit;
+      const card = document.createElement('div'); card.className = 'card' + (hit ? ' hit' : '');
+      let boxes = '';
+      if (col === 2 && showBoxes) phrases.forEach((_, p) => { const id = res.best[p][r]; boxes += `<span class="box" style="left:${(id & 15) * 6.25}%;top:${(id >> 4) * 6.25}%;border-color:${COLORS[p % COLORS.length]}"></span>`; });
+      card.innerHTML = `<a href="${esc(row.u)}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(row.t)}" alt="">${boxes}</a><div class="cap">${esc(row.c)}</div><div class="meta">${esc(row.d.replace('T', ' '))}${row.s === 'train' ? ' · <span class="tr">training frame</span>' : ''}</div>`;
+      grid.appendChild(card);
+    }
+    sec.querySelector('.tally').textContent = `${hits} of the top ${order.length} have a viewer caption containing the query.`;
+  });
+  $('#col2 .legend').innerHTML = showBoxes ? phrases.map((p, i) => `<span><i style="border-color:${COLORS[i % COLORS.length]}"></i>${esc(p)}</span>`).join('') : '';
+  $('#more').hidden = S.K >= 96;
+}
+
+async function run() {
+  const query = $('#q').value.trim(); if (!query || !S.cam) return;
+  try {
+    const phrases = phrasesOf(query), texts = phrases.length === 1 && phrases[0] === query ? [query] : [query, ...phrases];
+    const e = await embed(texts), t0 = performance.now(), res = score(e[0], texts.length === 1 ? [e[0]] : e.slice(1));
+    S.K = 12; S.last = { query, phrases, res }; render(); ready();
+    $('#status').innerHTML += ` Scored ${res.n.toLocaleString()} frames three ways in ${(performance.now() - t0).toFixed(0)} ms.`;
+    history.replaceState(null, '', `#cam=${S.cam}&q=${encodeURIComponent(query)}${$('#train').checked ? '&all=1' : ''}`);
+  } catch (err) { console.error(err); setStatus(`<b>Something went wrong: ${esc(String(err.message || err))}</b>`); }
+}
+
+$('#f').onsubmit = ev => { ev.preventDefault(); run(); };
+$('#more').onclick = () => { S.K = Math.min(96, S.K * 2); render(); };
+$('#boxes').onchange = () => S.last && render();
+$('#train').onchange = async () => { await loadCam(S.cam); if (S.last) run(); };
+$('#morechips').onclick = () => { const open = $('#chips').classList.toggle('open'); $('#morechips').textContent = open ? 'show fewer' : 'show all'; };
+document.querySelectorAll('.cams button').forEach(b => b.onclick = async () => { await loadCam(b.dataset.cam); if ($('#q').value.trim()) run(); });
+
+window.reef = { S, cams, embed, encoder, score };                      // for poking at from the console
+const h = new URLSearchParams(location.hash.slice(1));
+if (h.get('all')) $('#train').checked = true;
+if (h.get('q')) $('#q').value = h.get('q');
+loadCam(h.get('cam') === 'dock' ? 'dock' : 'coral').then(() => { if ($('#q').value) run(); }).catch(err => { console.error(err); setStatus(`<b>Could not load the camera data: ${esc(String(err.message || err))}</b>`); });
+</script>
+</body>
+</html>

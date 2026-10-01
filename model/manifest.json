@@ -1,0 +1,20 @@
+{
+ "graph": "text_encoder.onnx",
+ "files": {
+  "emb.bin": {
+   "bytes": 196608000,
+   "parts": [
+    "emb.bin.part0",
+    "emb.bin.part1",
+    "emb.bin.part2"
+   ]
+  },
+  "weights.bin": {
+   "bytes": 171147264,
+   "parts": [
+    "weights.bin.part0",
+    "weights.bin.part1"
+   ]
+  }
+ }
+}
