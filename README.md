@@ -2,7 +2,7 @@
 
 Text search over viewer-captioned snapshots from two fixed underwater cameras at Utopia Village, Roatán (the explore.org coral cam and dock cam), answered three ways: a frozen SigLIP2 model, two linear maps fitted to each camera's captions, and the same two maps applied over sets of query phrases and image patches. Everything runs in the browser.
 
-Page: https://www.photogeometry.com/examples/reef-search/ (this repository serves the data and the text encoder it loads; the same page also runs at https://pless.github.io/reef-cam-search/).
+Page: https://pless.github.io/reef-cam-search/
 
 ## What is here
 - `index.html`: the page.
